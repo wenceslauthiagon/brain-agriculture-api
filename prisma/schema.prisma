@@ -1,0 +1,61 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Crop {
+  SOYBEAN
+  CORN
+  C
+  OTTON
+  COFFEE
+  SUGARCANE
+}
+
+model Producer {
+  id        String   @id @default(uuid())
+  document  String   @unique // Validar no backend se é CPF (11) ou CNPJ (14)
+  name      String
+  farms     Farm[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("producers")
+}
+
+model Farm {
+  id             String  @id @default(uuid())
+  name           String
+  city           String
+  state          String  @db.VarChar(2) // Garante sigla de 2 caracteres ex: "SP"
+  totalArea      Decimal @db.Decimal(10, 2)
+  arableArea     Decimal @db.Decimal(10, 2)
+  vegetationArea Decimal @db.Decimal(10, 2)
+  producerId     String
+
+  producer Producer @relation(fields: [producerId], references: [id], onDelete: Cascade)
+
+  crops     FarmCrop[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([producerId])
+  @@index([state])
+  @@map("farms")
+}
+
+model FarmCrop {
+  id      String @id @default(uuid())
+  crop    Crop
+  harvest String // Ex: "2023/2024" ou "2024"
+  farmId  String
+
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, crop, harvest])
+  @@index([farmId])
+  @@map("farm_crops")
+}
