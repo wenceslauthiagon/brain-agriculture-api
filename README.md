@@ -67,7 +67,7 @@ POSTGRES_DB=brain_agriculture
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 
-DATABASE_URL="postgresql://postgres:271364@localhost:5432/brain_agriculture?schema=public"
+DATABASE_URL="postgresql://postgres:your_password@localhost:5432/brain_agriculture?schema=public"
 ```
 
 > O arquivo `.env` pode ser renomeado depois para `.env.develop`, desde que a mesma estrutura seja mantida.
@@ -161,4 +161,4 @@ http://localhost:3000/api
 
 ## Observacao final
 
-Este README foi pensado para servir como guia de execucao do projeto em ambiente local, sem entrar em excesso em detalhes de modelagem interna. O foco principal e ajudar qualquer pessoa a subir a API, configurar o banco e executar o app sem dificuldades.
+Este README é um guia rápido de execução local. Seu foco é garantir uma configuração simples do ambiente para que você possa subir o banco, iniciar a API e testar a aplicação facilmente.
