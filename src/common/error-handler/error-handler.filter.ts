@@ -12,6 +12,6 @@ export class ErrorHandlerFilter implements ExceptionFilter {
     const request = context.getRequest<Request>();
     const errorResponse = this.errorHandlerService.handle(error, request.url);
 
-    response.status(errorResponse.statusCode).json(errorResponse);
+    response.status(errorResponse.status_code).json(errorResponse);
   }
 }

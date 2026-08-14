@@ -4,7 +4,7 @@ import { HTTP_STATUS_LABELS } from '../constants/http-status.constants';
 import { ERROR_MESSAGES } from '../constants/messages/error-messages.constants';
 
 export type ErrorResponse = {
-  statusCode: number;
+  status_code: number;
   error: string;
   message: string;
   timestamp: string;
@@ -18,7 +18,7 @@ export class ErrorHandlerService {
     const message = this.extractMessage(error, statusCode);
 
     return {
-      statusCode,
+      status_code: statusCode,
       error: this.getHttpStatusLabel(statusCode),
       message,
       timestamp: new Date().toISOString(),
@@ -65,8 +65,12 @@ export class ErrorHandlerService {
   }
 
   private getHttpStatusLabel(statusCode: number): string {
-    return (
-      HTTP_STATUS_LABELS[statusCode] ?? ERROR_MESSAGES.INTERNAL_SERVER_ERROR
-    );
+    const label = HTTP_STATUS_LABELS[statusCode];
+
+    if (typeof label === 'string') {
+      return label;
+    }
+
+    return ERROR_MESSAGES.INTERNAL_SERVER_ERROR;
   }
 }
