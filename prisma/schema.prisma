@@ -9,19 +9,25 @@ generator client {
 enum Crop {
   SOYBEAN
   CORN
-  C
-  OTTON
+  COTTON
   COFFEE
   SUGARCANE
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
 }
 
 model Producer {
   id        String   @id @default(uuid())
   document  String   @unique // Validar no backend se é CPF (11) ou CNPJ (14)
   name      String
+  status    Status   @default(ACTIVE)
   farms     Farm[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   @@map("producers")
 }
@@ -31,16 +37,18 @@ model Farm {
   name           String
   city           String
   state          String  @db.VarChar(2) // Garante sigla de 2 caracteres ex: "SP"
-  totalArea      Decimal @db.Decimal(10, 2)
-  arableArea     Decimal @db.Decimal(10, 2)
-  vegetationArea Decimal @db.Decimal(10, 2)
-  producerId     String
+  totalArea      Decimal @db.Decimal(10, 2) @map("total_area")
+  arableArea     Decimal @db.Decimal(10, 2) @map("arable_area")
+  vegetationArea Decimal @db.Decimal(10, 2) @map("vegetation_area")
+  producerId     String  @map("producer_id")
+  status         Status  @default(ACTIVE)
 
   producer Producer @relation(fields: [producerId], references: [id], onDelete: Cascade)
 
   crops     FarmCrop[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime?  @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
 
   @@index([producerId])
   @@index([state])
@@ -48,10 +56,13 @@ model Farm {
 }
 
 model FarmCrop {
-  id      String @id @default(uuid())
-  crop    Crop
-  harvest String // Ex: "2023/2024" ou "2024"
-  farmId  String
+  id        String    @id @default(uuid())
+  crop      Crop
+  harvest   String // Ex: "2023/2024" ou "2024"
+  farmId    String    @map("farm_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
 

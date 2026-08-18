@@ -2,163 +2,239 @@
 
 API para gerenciamento de produtores rurais, fazendas e culturas por safra, desenvolvida com NestJS, Prisma e PostgreSQL.
 
-## Objetivo
+## Stack
 
-A aplicação foi estruturada para atender ao teste técnico da Brain Agriculture, com foco em:
-
-- cadastro de produtores
-- cadastro de fazendas
-- registro de culturas por safra
-- validacao de regras de negocio
-- estrutura modular para evolucao
-- possibilidade de uso com Docker + PostgreSQL
-
-## Stack utilizada
-
-- Node.js
+- Node.js LTS
 - TypeScript
 - NestJS
 - PostgreSQL
 - Prisma
-- Docker e Docker Compose
+- class-validator e class-transformer
+- Swagger/OpenAPI
 - Jest
-- Swagger
-- class-validator / class-transformer
+- Docker e Docker Compose
 
-## Estrutura do projeto
-
-```text
-src/
-├── app.module.ts
-├── app.controller.ts
-├── app.service.ts
-├── main.ts
-├── common/
-├── config/
-└── modules/
-    ├── producers/
-    └── dashboard/
-
-prisma/
-├── schema.prisma
-└── migrations/
-
-docker-compose.yml
-.env
-```
-
-## Requisitos para rodar
-
-Antes de iniciar, tenha instalado:
-
-- Node.js LTS
-- npm
-- Docker
-- Docker Compose
-
-## Variaveis de ambiente
-
-Crie um arquivo `.env` na raiz do projeto com as seguintes variaveis:
-
-```dotenv
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=271364
-POSTGRES_DB=brain_agriculture
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-
-DATABASE_URL="postgresql://postgres:271364@localhost:5432/brain_agriculture?schema=public"
-```
-
-> O arquivo `.env` pode ser renomeado depois para `.env.develop`, desde que a mesma estrutura seja mantida.
-
-## Banco de dados com Docker
-
-Na raiz do projeto, suba o banco com:
-
-```bash
-docker compose up -d
-```
-
-Se quiser usar outro arquivo de ambiente:
-
-```bash
-docker compose --env-file .env.develop up -d
-```
-
-## Instalar dependencias
+## 1. Instalação de dependências
 
 ```bash
 npm install
 ```
 
-## Rodar as migracoes do Prisma
+## 2. Configuração do ambiente (.env)
+
+Crie o arquivo `.env` com base em `.env.example`.
+
+Variáveis obrigatórias:
+
+```dotenv
+DATABASE_URL=
+JWT_SECRET=
+JWT_EXPIRES_IN=1h
+AUTH_USERNAME=
+AUTH_PASSWORD_HASH=
+CORS_ORIGIN=
+```
+
+Exemplo de `DATABASE_URL` local:
+
+```dotenv
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/brain_agriculture?schema=public"
+```
+
+`CORS_ORIGIN` aceita uma ou mais origens separadas por vírgula.
+
+Exemplo:
+
+```dotenv
+CORS_ORIGIN=http://localhost:5173,http://localhost:3001
+```
+
+Quando `CORS_ORIGIN` estiver vazio em desenvolvimento, a API permite origens localhost/127.0.0.1 para facilitar testes locais.
+
+## 3. Gerar AUTH_PASSWORD_HASH
+
+Não armazene senha em texto puro.
+
+Use o comando abaixo para gerar um hash bcrypt:
+
+```bash
+node -e "const bcrypt=require('bcryptjs'); console.log(bcrypt.hashSync('sua_senha_forte', 10));"
+```
+
+Copie o hash gerado para `AUTH_PASSWORD_HASH` no `.env`.
+
+## 4. Subir PostgreSQL com Docker
+
+```bash
+docker compose up -d
+```
+
+## 5. Executar migrations
 
 ```bash
 npx prisma migrate dev --name init
 ```
 
-Se necessario, gere o client:
+Se necessário, gere novamente o client:
 
 ```bash
 npx prisma generate
 ```
 
-## Iniciar a aplicacao
-
-Modo desenvolvimento:
+## 6. Iniciar a API
 
 ```bash
 npm run start:dev
 ```
 
-Ou em modo normal:
-
-```bash
-npm run start
-```
-
-## Validações e regras principais
-
-A API deve cobrir, no minimo:
-
-- cadastro de produtores
-- cadastro de fazendas
-- associacao de culturas por safra
-- validacao de documento
-- validacao da regra da area total x area agriculturavel x area de vegetacao
-- endpoint para dashboard/indicadores
-
-## Comandos uteis
-
-```bash
-# formatar schema Prisma
-npx prisma format
-
-# verificar schema
-npx prisma validate
-
-# abrir Prisma Studio
-npx prisma studio
-
-# build da aplicacao
-npm run build
-
-# rodar testes
-npm run test
-
-# testes E2E
-npm run test:e2e
-```
-
-## Swagger
-
-A aplicacao deve expor a documentacao OpenAPI em:
+## 7. Acessar Swagger
 
 ```text
 http://localhost:3000/api
 ```
 
-## Observacao final
+## 8. Login
 
-Este README foi pensado para servir como guia de execucao do projeto em ambiente local, sem entrar em excesso em detalhes de modelagem interna. O foco principal e ajudar qualquer pessoa a subir a API, configurar o banco e executar o app sem dificuldades.
+Endpoint público:
+
+`POST /auth/login`
+
+Body:
+
+```json
+{
+    "username": "seu_usuario",
+    "password": "sua_senha"
+}
+```
+
+Resposta:
+
+```json
+{
+    "access_token": "<jwt>",
+    "token_type": "Bearer",
+    "expires_in": "1h"
+}
+```
+
+## 9. Usar JWT nas rotas protegidas
+
+Todas as rotas são privadas por padrão.
+
+Envie o token no header:
+
+```text
+Authorization: Bearer <access_token>
+```
+
+Exemplo:
+
+`GET /producers`
+
+## 10. Endpoints públicos
+
+- `POST /auth/login`
+
+## 11. Endpoints que exigem autenticação
+
+- `GET /health`
+- `GET /dashboard`
+- Todas as rotas em `/producers` e sub-rotas
+- Demais rotas não marcadas com `@Public()`
+
+## Segurança implementada
+
+- JWT com `@nestjs/jwt` e `passport-jwt`
+- Guard JWT global (rotas privadas por padrão)
+- Decorator `@Public()` para rotas públicas
+- Rate limiting com `@nestjs/throttler`
+- Headers HTTP de segurança com `helmet`
+- CORS configurável via variável de ambiente
+
+## 12. Visão geral da arquitetura
+
+### Arquitetura de alto nível
+
+```mermaid
+flowchart LR
+    CLIENTE[Cliente / Frontend] --> API[NestJS API]
+    API --> AUTH[Auth]
+    API --> PRODUCERS[Module Producers]
+    PRODUCERS --> PRISMA[Prisma]
+    PRISMA --> DB[(PostgreSQL)]
+```
+
+### Estrutura do domínio
+
+```mermaid
+erDiagram
+    PRODUCER ||--o{ FARM : possui
+    FARM ||--o{ CROP : tem
+
+    PRODUCER {
+        string id
+        string document
+        string name
+        string status
+    }
+
+    FARM {
+        string id
+        string producer_id
+        string name
+        string city
+        string state
+        decimal total_area
+        decimal arable_area
+        decimal vegetation_area
+    }
+
+    CROP {
+        string id
+        string farm_id
+        string crop
+        string harvest
+    }
+```
+
+### Fluxo principal de cadastro
+
+```mermaid
+flowchart TD
+    A[Recebe requisição] --> B[Valida documento]
+    B --> C[Verifica duplicidade]
+    C --> D[Cria produtor]
+    D --> E[Cria fazenda]
+    E --> F[Valida área da fazenda]
+    F --> G[Normaliza cultura]
+    G --> H[Salva no banco]
+    H --> I[Retorna resposta]
+```
+
+### Fluxo de cadastro de cultura na fazenda
+
+```mermaid
+sequenceDiagram
+    participant U as Usuário
+    participant S as ProducersService
+    participant P as Prisma
+
+    U->>S: addCrop(producerId, farmId, dto)
+    S->>S: valida produtor
+    S->>S: busca fazenda
+    S->>S: verifica if fazenda pertence ao produtor
+    S->>S: normaliza cultura
+    S->>P: cria registro de farmCrop
+    P-->>S: retorna registro
+    S-->>U: resposta final
+```
+
+## Comandos úteis
+
+```bash
+npm run build
+npm run lint
+npm run test
+npm run test:e2e
+```
