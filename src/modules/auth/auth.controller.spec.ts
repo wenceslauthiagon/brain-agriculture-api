@@ -2,40 +2,42 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
-describe('AuthController', () => {
-  let authController: AuthController;
-  let authService: { login: jest.Mock };
+describe('auth_controller', () => {
+  let auth_controller: AuthController;
+  let auth_service: { login: jest.Mock };
+
+  const create_auth_service_mock = () => ({
+    login: jest.fn(),
+  });
 
   beforeEach(async () => {
-    authService = {
-      login: jest.fn(),
-    };
+    auth_service = create_auth_service_mock();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         {
           provide: AuthService,
-          useValue: authService,
+          useValue: auth_service,
         },
       ],
     }).compile();
 
-    authController = module.get<AuthController>(AuthController);
+    auth_controller = module.get<AuthController>(AuthController);
   });
 
   it('should be defined', () => {
-    expect(authController).toBeDefined();
+    expect(auth_controller).toBeDefined();
   });
 
-  it('TC0001 - Should return access token on successful login', async () => {
-    authService.login.mockResolvedValue({
+  it('TC0001 - should return_access_token_on_successful_login', async () => {
+    auth_service.login.mockResolvedValue({
       access_token: 'jwt-token',
       token_type: 'Bearer',
       expires_in: '1h',
     });
 
-    const result = await authController.login({
+    const result = await auth_controller.login({
       username: 'admin',
       password: 'password',
     });
@@ -46,6 +48,6 @@ describe('AuthController', () => {
       expires_in: '1h',
     });
 
-    expect(authService.login).toHaveBeenCalledTimes(1);
+    expect(auth_service.login).toHaveBeenCalledTimes(1);
   });
 });

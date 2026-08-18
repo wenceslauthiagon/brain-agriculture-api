@@ -152,6 +152,84 @@ Exemplo:
 - Headers HTTP de segurança com `helmet`
 - CORS configurável via variável de ambiente
 
+## 12. Visão geral da arquitetura
+
+### Arquitetura de alto nível
+
+```mermaid
+flowchart LR
+    CLIENTE[Cliente / Frontend] --> API[NestJS API]
+    API --> AUTH[Auth]
+    API --> PRODUCERS[Module Producers]
+    PRODUCERS --> PRISMA[Prisma]
+    PRISMA --> DB[(PostgreSQL)]
+```
+
+### Estrutura do domínio
+
+```mermaid
+erDiagram
+    PRODUCER ||--o{ FARM : possui
+    FARM ||--o{ CROP : tem
+
+    PRODUCER {
+        string id
+        string document
+        string name
+        string status
+    }
+
+    FARM {
+        string id
+        string producer_id
+        string name
+        string city
+        string state
+        decimal total_area
+        decimal arable_area
+        decimal vegetation_area
+    }
+
+    CROP {
+        string id
+        string farm_id
+        string crop
+        string harvest
+    }
+```
+
+### Fluxo principal de cadastro
+
+```mermaid
+flowchart TD
+    A[Recebe requisição] --> B[Valida documento]
+    B --> C[Verifica duplicidade]
+    C --> D[Cria produtor]
+    D --> E[Cria fazenda]
+    E --> F[Valida área da fazenda]
+    F --> G[Normaliza cultura]
+    G --> H[Salva no banco]
+    H --> I[Retorna resposta]
+```
+
+### Fluxo de cadastro de cultura na fazenda
+
+```mermaid
+sequenceDiagram
+    participant U as Usuário
+    participant S as ProducersService
+    participant P as Prisma
+
+    U->>S: addCrop(producerId, farmId, dto)
+    S->>S: valida produtor
+    S->>S: busca fazenda
+    S->>S: verifica if fazenda pertence ao produtor
+    S->>S: normaliza cultura
+    S->>P: cria registro de farmCrop
+    P-->>S: retorna registro
+    S-->>U: resposta final
+```
+
 ## Comandos úteis
 
 ```bash

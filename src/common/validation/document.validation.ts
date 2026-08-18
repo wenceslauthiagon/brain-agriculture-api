@@ -2,13 +2,13 @@ import { CnpjDocument } from './documents/cnpj.document';
 import { CpfDocument } from './documents/cpf.document';
 
 export const sanitizeDocument = (document: string): string =>
-  document.replace(/\D/g, '');
+  document.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
 export const isCpf = (document: string): boolean =>
-  sanitizeDocument(document).length === 11;
+  /^\d{11}$/.test(sanitizeDocument(document));
 
 export const isCnpj = (document: string): boolean =>
-  sanitizeDocument(document).length === 14;
+  /^[A-Z0-9]{14}$/.test(sanitizeDocument(document));
 
 export const isValidCpf = (document: string): boolean =>
   new CpfDocument(document).isValid();

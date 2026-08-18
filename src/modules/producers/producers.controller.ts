@@ -1,14 +1,18 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,6 +20,7 @@ import {
   ApiNoContentResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -28,6 +33,7 @@ import {
   FarmCropResponse,
   FarmResponse,
   ProducerResponse,
+  ProducersListResponse,
 } from './interfaces/producer-response.interface';
 import { UpdateProducerDto } from './dto/update-producer.dto';
 import { ProducersService } from './producers.service';
@@ -63,29 +69,51 @@ export class ProducersController {
   }
 
   @ApiOperation({ summary: 'Listar produtores' })
+  @ApiQuery({ name: 'page', required: false, example: 0 })
+  @ApiQuery({ name: 'pageSize', required: false, example: 10 })
   @ApiResponse({
     status: 200,
     description: 'Produtores listados com sucesso',
     schema: {
       example: {
         message: 'Producers fetched successfully',
-        data: [
-          {
-            id: '18f8d4f2-a2c3-450c-b7b8-3f1f4f56f2b0',
-            document: '12345678909',
-            name: 'Joao da Silva',
-            status: 'ACTIVE',
-            created_at: '2026-08-14T12:00:00.000Z',
-            updated_at: '2026-08-14T12:00:00.000Z',
-            deleted_at: null,
-          },
-        ],
+        data: {
+          records: [
+            {
+              id: '18f8d4f2-a2c3-450c-b7b8-3f1f4f56f2b0',
+              document: '12345678909',
+              name: 'Joao da Silva',
+              status: 'ACTIVE',
+              created_at: '2026-08-14T12:00:00.000Z',
+              updated_at: null,
+            },
+          ],
+          page: 0,
+          pageSize: 10,
+          total_pages: 1,
+          total_records: 1,
+        },
       },
     },
   })
   @Get()
-  async findAll(): Promise<StandardApiResponse<ProducerResponse[]>> {
-    const producers = await this.producersService.findAll();
+  async findAll(
+    @Query('page', new DefaultValuePipe(0), ParseIntPipe) page: number,
+    @Query('pageSize', new DefaultValuePipe(10), ParseIntPipe)
+    pageSize: number,
+  ): Promise<StandardApiResponse<ProducersListResponse>> {
+    if (page < 0) {
+      throw new BadRequestException('page must be greater than or equal to 0');
+    }
+
+    if (pageSize <= 0) {
+      throw new BadRequestException(
+        'pageSize must be greater than or equal to 1',
+      );
+    }
+
+    const producers: ProducersListResponse =
+      await this.producersService.findAll(page, pageSize);
     return makeApiResponse('Producers fetched successfully', producers);
   }
 
@@ -104,7 +132,6 @@ export class ProducersController {
           status: 'ACTIVE',
           created_at: '2026-08-14T12:00:00.000Z',
           updated_at: '2026-08-14T12:00:00.000Z',
-          deleted_at: null,
           farms: [],
         },
       },
@@ -134,7 +161,6 @@ export class ProducersController {
           status: 'ACTIVE',
           created_at: '2026-08-14T12:00:00.000Z',
           updated_at: '2026-08-14T12:10:00.000Z',
-          deleted_at: null,
         },
       },
     },
@@ -180,8 +206,7 @@ export class ProducersController {
           producer_id: '18f8d4f2-a2c3-450c-b7b8-3f1f4f56f2b0',
           status: 'ACTIVE',
           created_at: '2026-08-14T12:00:00.000Z',
-          updated_at: '2026-08-14T12:00:00.000Z',
-          deleted_at: null,
+          updated_at: null,
           crops: [],
         },
       },
@@ -217,7 +242,7 @@ export class ProducersController {
           crop: 'SOYBEAN',
           harvest: 'Safra 2024',
           farm_id: '1f7e16f8-48c7-456f-bcef-a6d1f445723e',
-          deleted_at: null,
+          created_at: '2026-08-14T12:00:00.000Z',
         },
       },
     },
@@ -256,7 +281,6 @@ export class ProducersController {
             status: 'ACTIVE',
             created_at: '2026-08-14T12:00:00.000Z',
             updated_at: '2026-08-14T12:00:00.000Z',
-            deleted_at: null,
             crops: [],
           },
         ],
@@ -311,7 +335,7 @@ export class ProducersController {
             crop: 'SOYBEAN',
             harvest: 'Safra 2024',
             farm_id: '1f7e16f8-48c7-456f-bcef-a6d1f445723e',
-            deleted_at: null,
+            created_at: '2026-08-14T12:00:00.000Z',
           },
         ],
       },

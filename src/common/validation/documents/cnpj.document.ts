@@ -2,7 +2,7 @@ export class CnpjDocument {
   private readonly value: string;
 
   constructor(document: string) {
-    this.value = document.replace(/\D/g, '');
+    this.value = document.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   }
 
   sanitized(): string {
@@ -10,7 +10,15 @@ export class CnpjDocument {
   }
 
   isValid(): boolean {
-    if (this.value.length !== 14 || this.allDigitsEqual()) {
+    if (this.value.length !== 14 || this.allCharsEqual()) {
+      return false;
+    }
+
+    if (!/^[A-Z0-9]{14}$/.test(this.value)) {
+      return false;
+    }
+
+    if (!/^\d{2}$/.test(this.value.slice(12))) {
       return false;
     }
 
@@ -30,14 +38,16 @@ export class CnpjDocument {
   }
 
   private calculateDigit(base: string, factors: number[]): number {
-    const sum = base
-      .split('')
-      .reduce((acc, digit, index) => acc + Number(digit) * factors[index], 0);
+    const sum = base.split('').reduce((acc, char, index) => {
+      const asciiValue = (char.codePointAt(0) ?? 48) - 48;
+      return acc + asciiValue * factors[index];
+    }, 0);
+
     const remainder = sum % 11;
     return remainder < 2 ? 0 : 11 - remainder;
   }
 
-  private allDigitsEqual(): boolean {
-    return /^([0-9])\1+$/.test(this.value);
+  private allCharsEqual(): boolean {
+    return /^(.)\1+$/.test(this.value);
   }
 }

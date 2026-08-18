@@ -20,6 +20,7 @@ import {
   FarmCropResponse,
   FarmResponse,
   ProducerResponse,
+  ProducersListResponse,
 } from './interfaces/producer-response.interface';
 import { UpdateProducerDto } from './dto/update-producer.dto';
 
@@ -32,71 +33,100 @@ export class ProducersService {
     this.ensureValidDocument(document);
     await this.ensureDocumentIsAvailable(document);
 
-    return this.prisma.producer.create({
+    const producer = await this.prisma.producer.create({
       data: {
         document,
         name: dto.name,
         status: 'ACTIVE',
+        updatedAt: null,
       },
     });
+
+    return this.sanitize_response<ProducerResponse>(producer);
   }
 
-  async findAll(): Promise<ProducerResponse[]> {
-    return this.prisma.producer.findMany({
-      where: {
-        deletedAt: null,
-        status: 'ACTIVE',
-      },
-      include: {
-        farms: {
-          where: {
-            deletedAt: null,
-            status: 'ACTIVE',
-          },
-          include: {
-            crops: {
-              where: {
-                deletedAt: null,
+  async findAll(
+    page: number,
+    pageSize: number,
+  ): Promise<ProducersListResponse> {
+    const where = {
+      deletedAt: null,
+      status: 'ACTIVE' as const,
+    };
+
+    const [totalRecords, producers] = await Promise.all([
+      this.prisma.producer.count({ where }),
+      this.prisma.producer.findMany({
+        where,
+        include: {
+          farms: {
+            where: {
+              deletedAt: null,
+              status: 'ACTIVE',
+            },
+            include: {
+              crops: {
+                where: {
+                  deletedAt: null,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: page * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      records: this.sanitize_response<ProducerResponse[]>(producers),
+      page,
+      pageSize,
+      totalPages: totalRecords === 0 ? 0 : Math.ceil(totalRecords / pageSize),
+      totalRecords,
+    };
   }
 
   async findOne(id: string): Promise<ProducerResponse> {
-    return this.getProducerOrFail(id);
+    const producer = await this.getProducerOrFail(id);
+    return this.sanitize_response<ProducerResponse>(producer);
   }
 
   async update(id: string, dto: UpdateProducerDto): Promise<ProducerResponse> {
     await this.getProducerOrFail(id);
 
-    const data: Prisma.ProducerUpdateInput = {};
+    const data: Prisma.ProducerUpdateInput = {
+      updatedAt: new Date(),
+    };
 
     if (dto.name) {
       data.name = dto.name;
     }
 
-    return this.prisma.producer.update({
+    const producer = await this.prisma.producer.update({
       where: { id },
       data,
     });
+
+    return this.sanitize_response<ProducerResponse>(producer);
   }
 
   async remove(id: string): Promise<ProducerResponse> {
     await this.getProducerOrFail(id);
 
-    return this.prisma.producer.update({
+    const producer = await this.prisma.producer.update({
       where: { id },
       data: {
         deletedAt: new Date(),
         status: 'INACTIVE',
+        updatedAt: new Date(),
       },
     });
+
+    return this.sanitize_response<ProducerResponse>(producer);
   }
 
   async addFarm(producerId: string, dto: CreateFarmDto): Promise<FarmResponse> {
@@ -113,7 +143,7 @@ export class ProducersService {
       harvest: crop.harvest,
     }));
 
-    return this.prisma.farm.create({
+    const farm = await this.prisma.farm.create({
       data: {
         name: dto.name,
         city: dto.city,
@@ -133,6 +163,15 @@ export class ProducersService {
         crops: true,
       },
     });
+
+    await this.prisma.producer.update({
+      where: { id: producerId },
+      data: {
+        updatedAt: new Date(),
+      },
+    });
+
+    return this.sanitize_response<FarmResponse>(farm);
   }
 
   async addCrop(
@@ -148,13 +187,22 @@ export class ProducersService {
     }
 
     try {
-      return await this.prisma.farmCrop.create({
+      const crop = await this.prisma.farmCrop.create({
         data: {
           farmId,
           crop: this.normalizeCropOrFail(dto.crop),
           harvest: dto.harvest,
         },
       });
+
+      await this.prisma.farm.update({
+        where: { id: farmId },
+        data: {
+          updatedAt: new Date(),
+        },
+      });
+
+      return this.sanitize_response<FarmCropResponse>(crop);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -170,7 +218,7 @@ export class ProducersService {
   async listFarms(producerId: string): Promise<FarmResponse[]> {
     await this.getProducerOrFail(producerId);
 
-    return this.prisma.farm.findMany({
+    const farms = await this.prisma.farm.findMany({
       where: {
         producerId,
         deletedAt: null,
@@ -187,23 +235,28 @@ export class ProducersService {
         createdAt: 'desc',
       },
     });
+
+    return this.sanitize_response<FarmResponse[]>(farms);
   }
 
   async removeFarm(producerId: string, farmId: string): Promise<FarmResponse> {
     await this.getProducerOrFail(producerId);
 
-    const farm = await this.getFarmOrFail(farmId);
-    if (farm.producerId !== producerId) {
+    const existing_farm = await this.getFarmOrFail(farmId);
+    if (existing_farm.producerId !== producerId) {
       throw new NotFoundException(ERROR_MESSAGES.FARM_NOT_FOUND);
     }
 
-    return this.prisma.farm.update({
+    const farm = await this.prisma.farm.update({
       where: { id: farmId },
       data: {
         deletedAt: new Date(),
         status: 'INACTIVE',
+        updatedAt: new Date(),
       },
     });
+
+    return this.sanitize_response<FarmResponse>(farm);
   }
 
   async listCrops(
@@ -217,7 +270,7 @@ export class ProducersService {
       throw new NotFoundException(ERROR_MESSAGES.FARM_NOT_FOUND);
     }
 
-    return this.prisma.farmCrop.findMany({
+    const crops = await this.prisma.farmCrop.findMany({
       where: {
         farmId,
         deletedAt: null,
@@ -226,6 +279,8 @@ export class ProducersService {
         harvest: 'desc',
       },
     });
+
+    return this.sanitize_response<FarmCropResponse[]>(crops);
   }
 
   async removeCrop(
@@ -240,20 +295,27 @@ export class ProducersService {
       throw new NotFoundException(ERROR_MESSAGES.FARM_NOT_FOUND);
     }
 
-    const crop = await this.prisma.farmCrop.findUnique({
+    const existing_crop = await this.prisma.farmCrop.findUnique({
       where: { id: cropId },
     });
 
-    if (!crop?.farmId || crop.farmId !== farmId || crop.deletedAt) {
+    if (
+      !existing_crop?.farmId ||
+      existing_crop.farmId !== farmId ||
+      existing_crop.deletedAt
+    ) {
       throw new NotFoundException(ERROR_MESSAGES.INVALID_CROP);
     }
 
-    return this.prisma.farmCrop.update({
+    const crop = await this.prisma.farmCrop.update({
       where: { id: cropId },
       data: {
         deletedAt: new Date(),
+        updatedAt: new Date(),
       },
     });
+
+    return this.sanitize_response<FarmCropResponse>(crop);
   }
 
   private async ensureDocumentIsAvailable(
@@ -290,7 +352,17 @@ export class ProducersService {
     }
   }
 
-  private async getProducerOrFail(id: string): Promise<ProducerResponse> {
+  private async getProducerOrFail(id: string): Promise<
+    Prisma.ProducerGetPayload<{
+      include: {
+        farms: {
+          include: {
+            crops: true;
+          };
+        };
+      };
+    }>
+  > {
     const producer = await this.prisma.producer.findUnique({
       where: { id, status: 'ACTIVE' },
       include: {
@@ -317,7 +389,13 @@ export class ProducersService {
     return producer;
   }
 
-  private async getFarmOrFail(id: string): Promise<FarmResponse> {
+  private async getFarmOrFail(id: string): Promise<
+    Prisma.FarmGetPayload<{
+      include: {
+        crops: true;
+      };
+    }>
+  > {
     const farm = await this.prisma.farm.findUnique({
       where: { id, status: 'ACTIVE' },
       include: {
@@ -344,5 +422,34 @@ export class ProducersService {
     }
 
     return normalizedCrop;
+  }
+
+  private sanitize_response<T>(input: unknown): T {
+    if (input instanceof Date || input instanceof Prisma.Decimal) {
+      return input as T;
+    }
+
+    if (Array.isArray(input)) {
+      return input.map((item) => this.sanitize_response(item)) as T;
+    }
+
+    if (input && typeof input === 'object') {
+      const isCropObject =
+        'crop' in input && 'harvest' in input && 'farmId' in input;
+
+      return Object.entries(input).reduce<Record<string, unknown>>(
+        (accumulator, [key, value]) => {
+          if (key === 'deletedAt' || (isCropObject && key === 'updatedAt')) {
+            return accumulator;
+          }
+
+          accumulator[key] = this.sanitize_response(value);
+          return accumulator;
+        },
+        {},
+      ) as T;
+    }
+
+    return input as T;
   }
 }

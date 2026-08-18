@@ -1,30 +1,34 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 
-describe('JwtStrategy', () => {
+describe('jwt_strategy', () => {
   it('should be defined', () => {
-    const configService = {
+    const config_service = {
       getOrThrow: jest.fn().mockReturnValue('test-secret'),
     };
 
-    const strategy = new JwtStrategy(configService as unknown as ConfigService);
+    const strategy = new JwtStrategy(
+      config_service as unknown as ConfigService,
+    );
 
     expect(strategy).toBeDefined();
   });
 
-  it('TC0001 - Should validate token payload correctly', () => {
-    const configService = {
+  it('TC0001 - should validate_token_payload_correctly', () => {
+    const config_service = {
       getOrThrow: jest.fn().mockReturnValue('test-secret'),
     };
 
-    const strategy = new JwtStrategy(configService as unknown as ConfigService);
+    const strategy = new JwtStrategy(
+      config_service as unknown as ConfigService,
+    );
 
     const result = strategy.validate({
       sub: 'admin',
       username: 'admin',
     });
 
-    expect(configService.getOrThrow).toHaveBeenCalledWith('JWT_SECRET');
+    expect(config_service.getOrThrow).toHaveBeenCalledWith('JWT_SECRET');
     expect(result).toEqual({
       userId: 'admin',
       username: 'admin',

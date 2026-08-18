@@ -5,13 +5,7 @@
 
 */
 -- AlterEnum
-BEGIN;
-CREATE TYPE "Crop_new" AS ENUM ('SOYBEAN', 'CORN', 'C', 'OTTON', 'COFFEE', 'SUGARCANE');
-ALTER TABLE "farm_crops" ALTER COLUMN "crop" TYPE "Crop_new" USING ("crop"::text::"Crop_new");
-ALTER TYPE "Crop" RENAME TO "Crop_old";
-ALTER TYPE "Crop_new" RENAME TO "Crop";
-DROP TYPE "public"."Crop_old";
-COMMIT;
+-- no-op: keep original Crop enum values
 
 -- AlterTable
 ALTER TABLE "farm_crops" ADD COLUMN     "deletedAt" TIMESTAMP(3);

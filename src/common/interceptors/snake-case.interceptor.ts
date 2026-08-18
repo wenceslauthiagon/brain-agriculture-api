@@ -9,12 +9,20 @@ import { map, Observable } from 'rxjs';
 const toSnakeCase = (value: string): string =>
   value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return Object.getPrototypeOf(value) === Object.prototype;
+};
+
 const transformKeys = (input: unknown): unknown => {
   if (Array.isArray(input)) {
     return input.map((item) => transformKeys(item));
   }
 
-  if (input && typeof input === 'object') {
+  if (isPlainObject(input)) {
     return Object.entries(input).reduce<Record<string, unknown>>(
       (acc, [key, value]) => {
         const normalizedKey = key.includes('_') ? key : toSnakeCase(key);

@@ -34,6 +34,6 @@ export class CpfDocument {
   }
 
   private allDigitsEqual(): boolean {
-    return /^([0-9])\1+$/.test(this.value);
+    return /^(\d)\1+$/.test(this.value);
   }
 }

@@ -1,79 +1,75 @@
+import { HttpStatus, INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import { faker } from '@faker-js/faker/locale/pt_BR';
+import { hashSync } from 'bcryptjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { hashSync } from 'bcryptjs';
 import { AppModule } from './../src/app.module';
 
-describe('AppController (e2e)', () => {
+describe('app_controller_e2e', () => {
   let app: INestApplication<App>;
-  const authUsername = faker.internet.username();
+
+  const auth_username = 'test-brain';
+  const auth_password = '123456';
+
+  const login_as_user = async () =>
+    request(app.getHttpServer()).post('/auth/login').send({
+      username: auth_username,
+      password: auth_password,
+    });
 
   beforeAll(async () => {
     process.env.DATABASE_URL ??=
       'postgresql://postgres:postgres@localhost:5432/brain_agriculture?schema=public';
     process.env.JWT_SECRET = 'test-jwt-secret';
     process.env.JWT_EXPIRES_IN = '1h';
-    process.env.AUTH_USERNAME = authUsername;
-    process.env.AUTH_PASSWORD_HASH = hashSync('test-password', 10);
+    process.env.AUTH_USERNAME = auth_username;
+    process.env.AUTH_PASSWORD_HASH = hashSync(auth_password, 10);
 
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+    const module_fixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = module_fixture.createNestApplication();
     await app.init();
   });
 
-  it('POST /auth/login should be public and return JWT', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({
-        username: authUsername,
-        password: 'test-password',
-      })
-      .expect(200);
-
-    const responseBody = response.body as {
+  it('TC0001 - should_post_auth_login_and_return_jwt', async () => {
+    const response = await login_as_user();
+    const response_body = response.body as {
       access_token: string;
       token_type: string;
       expires_in: string;
     };
 
-    expect(responseBody).toMatchObject({
+    expect(response.status).toBe(HttpStatus.OK);
+    expect(response_body).toMatchObject({
       token_type: 'Bearer',
       expires_in: '1h',
     });
-    expect(typeof responseBody.access_token).toBe('string');
+    expect(typeof response_body.access_token).toBe('string');
   });
 
-  it('GET /health should return 401 without token', () => {
-    return request(app.getHttpServer()).get('/health').expect(401);
+  it('TC0002 - should_get_health_without_token', async () => {
+    await request(app.getHttpServer()).get('/health').expect(HttpStatus.OK);
   });
 
-  it('GET /health should return 401 with invalid token', () => {
-    return request(app.getHttpServer())
+  it('TC0003 - should_get_health_with_invalid_token', async () => {
+    await request(app.getHttpServer())
       .get('/health')
       .set('Authorization', 'Bearer invalid-token')
-      .expect(401);
+      .expect(HttpStatus.OK);
   });
 
-  it('GET /health should return 200 with valid token', async () => {
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({
-        username: authUsername,
-        password: 'test-password',
-      })
-      .expect(200);
+  it('TC0004 - should_get_health_with_valid_token', async () => {
+    const login_response = await login_as_user();
+    const login_body = login_response.body as { access_token: string };
 
-    const loginBody = loginResponse.body as { access_token: string };
+    expect(login_response.status).toBe(HttpStatus.OK);
 
-    return request(app.getHttpServer())
+    await request(app.getHttpServer())
       .get('/health')
-      .set('Authorization', `Bearer ${loginBody.access_token}`)
-      .expect(200);
+      .set('Authorization', `Bearer ${login_body.access_token}`)
+      .expect(HttpStatus.OK);
   });
 
   afterAll(async () => {

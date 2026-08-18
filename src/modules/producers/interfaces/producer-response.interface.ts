@@ -5,7 +5,7 @@ export interface FarmCropResponse {
   crop: Crop;
   harvest: string;
   farmId: string;
-  deletedAt: Date | null;
+  createdAt: Date;
 }
 
 export interface FarmResponse {
@@ -19,8 +19,7 @@ export interface FarmResponse {
   producerId: string;
   status: Status;
   createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
+  updatedAt: Date | null;
   crops?: FarmCropResponse[];
 }
 
@@ -30,7 +29,14 @@ export interface ProducerResponse {
   name: string;
   status: Status;
   createdAt: Date;
-  updatedAt: Date;
-  deletedAt: Date | null;
+  updatedAt: Date | null;
   farms?: FarmResponse[];
+}
+
+export interface ProducersListResponse {
+  records: ProducerResponse[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalRecords: number;
 }
